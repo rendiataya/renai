@@ -54,6 +54,7 @@ renai/
 
 - [x] Basic Interface
 - [x] Model selection
+- [] Mobile design
 - [] Functional sidebar
 - [] File upload
 - [] Auth 
