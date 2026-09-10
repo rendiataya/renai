@@ -1,0 +1,5 @@
+.env
+.python-version
+src/
+structure.txt
+pyproject.toml

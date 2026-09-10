@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <!-- Pengaturan Karakter Set dan Viewport untuk Responsivitas -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RenAI - AI Aggregator</title>
+    
+    <!-- Tailwind CSS Engine (v4 Browser Bundle) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <style>
+        /* Format teks pada area chat agar mempertahankan spasi dan baris baru */
+        #chatArea div {
+            white-space: pre-wrap !important;
+        }
+    
+        /* Custom Styling Scrollbar untuk Tema Gelap */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #212121; }
+        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 3px; }
+    
+        /* Animasi Pulsa untuk Indikator Status "Berpikir..." */
+        @keyframes pulse-light {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        .thinking-pulse {
+            animation: pulse-light 1.4s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-[#212121] text-gray-200 font-sans h-screen flex overflow-hidden m-0 p-0">
+
+    <!-- Sidebar Komponen: Menampilkan tombol Chat Baru & Riwayat Chat -->
+    <aside id="sidebar" class="w-0 opacity-0 bg-[#171717] h-full flex flex-col justify-between overflow-hidden transition-all duration-500 border-gray-800 shrink-0 z-30">
+        <div class="flex flex-col gap-2 p-3 w-64">
+            <!-- Tombol untuk mereset/memulai chat baru -->
+            <button onclick="window.location.reload()" class="w-full text-left p-3 hover:bg-[#212121] rounded-lg border border-gray-700 flex items-center justify-between text-sm transition font-medium cursor-pointer">
+                <span>Chat Baru</span>
+            </button>
+            
+            <!-- Daftar Riwayat Percakapan -->
+            <div class="text-xs text-gray-500 px-3 mt-4 uppercase font-bold tracking-wider">Riwayat Chat</div>
+            <div class="text-sm text-gray-400 px-3 py-2 hover:bg-[#212121] rounded-md cursor-pointer truncate">
+                First chat
+            </div>
+        </div>
+        
+        <!-- Footer Sidebar -->
+        <div class="p-5 text-xs text-gray-500 border-t border-gray-800 w-64">
+            More inprogress
+        </div>
+    </aside>
+
+    <!-- Area Utama Aplikasi (Header, Chat Stream, Welcome Screen, dan Input Box) -->
+    <main class="flex-1 flex flex-col relative h-full w-full justify-between items-center bg-[#212121] overflow-hidden">
+        
+        <!-- Header Atas dengan Logo / Judul Aplikasi -->
+        <header class="w-full p-4 flex justify-between items-center absolute top-0 left-0 z-10">
+            <div class="text-lg font-semibold text-gray-400 ml-2" id="topLogo">RenAI</div>
+        </header>
+
+        <!-- Container Percakapan Chat (Disembunyikan pada awal dimuat) -->
+        <div id="chatArea" class="w-full max-w-3xl flex-1 overflow-y-auto px-4 pt-20 pb-48 space-y-6 hidden mx-auto transition-opacity duration-500 opacity-0">
+        </div>
+
+        <!-- Tampilan Pesan Selamat Datang (Awal sebelum ada percakapan) -->
+        <div id="welcomeScreen" class="flex flex-col items-center justify-center flex-1 max-w-xl text-center px-4 mx-auto my-auto transition-all duration-500 opacity-100 transform scale-100">
+            <h1 class="text-4xl font-bold text-gray-100 mb-2">Mau bantu apa hari ini?</h1>
+            <p class="text-gray-400 text-sm">Pilih model andalanmu di kiri bawah dan mulailah mengetik.</p>
+        </div>
+
+        <!-- Container Input Pesan & Pemilihan Model AI -->
+        <div class="w-full max-w-3xl px-4 absolute bottom-0 pb-6 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent pt-10 mx-auto left-0 right-0 z-20">
+            <div class="bg-[#2f2f2f] rounded-2xl p-3 border border-gray-700 shadow-2xl flex flex-col gap-2">
+                
+                <!-- Textarea untuk Mengetik Pesan -->
+                <textarea 
+                    id="userInput" 
+                    rows="1"
+                    placeholder="Tanya Groq sesuatu..." 
+                    class="w-full bg-transparent resize-none outline-none text-gray-100 placeholder-gray-500 text-base px-2 py-1"
+                    onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
+
+                <!-- Panel Kontrol Bawah Textarea: Dropdown Model & Tombol Kirim -->
+                <div class="flex justify-between items-center pt-2 border-t border-gray-800">
+                    <div class="flex items-center gap-2">
+                        <!-- Dropdown Pilihan Model (Template Jinja2 / Server Side Rendering) -->
+                        <select id="modelSelect" class="bg-[#212121] text-xs text-gray-400 border border-gray-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:bg-[#2d2d2d] transition">
+                            {% for model in models %}
+                                <option value="{{ model.id }}">{{ model.display_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Tombol Kirim Pesan -->
+                    <button onclick="sendMessage()" class="bg-white hover:bg-gray-200 text-black font-bold p-2 rounded-full transition shadow flex items-center justify-center w-8 h-8 cursor-pointer">
+                        <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Disclaimer Penggunaan AI -->
+            <div class="text-[10px] text-gray-500 text-center mt-2">
+                AI dapat membuat kesalahan. Pertimbangkan untuk memeriksa informasi penting.
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Script Logika Frontend -->
+    <script>
+        // Flag untuk menandai apakah percakapan pertama kali dilakukan
+        let isFirstChat = true;
+
+        /**
+         * Fungsi utama untuk mengirim pesan pengguna ke backend server dan menerima respon AI.
+         */
+        async function sendMessage() {
+            const messageInput = document.getElementById('userInput');
+            const message = messageInput.value;
+            const modelId = document.getElementById('modelSelect').value;
+            const chatArea = document.getElementById('chatArea');
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            const sidebar = document.getElementById('sidebar');
+
+            // Abaikan jika input pesan kosong
+            if (!message.trim()) return;
+
+            // Transisi tampilan awal jika ini pesan pertama
+            if (isFirstChat) {
+                welcomeScreen.classList.add('opacity-0', 'scale-95');
+                
+                setTimeout(() => {
+                    welcomeScreen.classList.add('hidden');
+                    welcomeScreen.classList.remove('flex');
+                    
+                    chatArea.classList.remove('hidden');
+                    setTimeout(() => chatArea.classList.add('opacity-100'), 50);
+                }, 400);
+
+                // Tampilkan sidebar
+                sidebar.classList.remove('w-0', 'opacity-0');
+                sidebar.classList.add('w-64', 'opacity-100', 'border-r');
+                
+                isFirstChat = false;
+            }
+
+            // Tampilkan pesan pengguna di area chat
+            appendMessage('user', message);
+            messageInput.value = "";
+            
+            // Tampilkan placeholder pesan bot dengan indikator berpikir
+            const botMessageId = appendMessage('bot', 'Berpikir...');
+            const botZone = document.getElementById(botMessageId);
+            botZone.classList.add('thinking-pulse', 'text-gray-400', 'italic');
+
+            try {
+                // Mengirim permintaan POST ke endpoint backend (/chat)
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message, model_id: modelId })
+                });
+
+                // Hapus animasi indikator berpikir
+                botZone.classList.remove('thinking-pulse', 'text-gray-400', 'italic');
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Jalankan efek pengetikan untuk balasan AI
+                    typeWriter(botZone, data.reply, chatArea);
+                } else {
+                    botZone.innerText = "Error dari Server: " + data.error;
+                    botZone.classList.add('text-red-400');
+                }
+            } catch (err) {
+                // Penanganan error jaringan atau kegagalan koneksi
+                botZone.classList.remove('thinking-pulse', 'text-gray-400', 'italic');
+                botZone.innerText = "Gagal mengambil data dari server lokal. Pastikan main.py terhubung.";
+                botZone.classList.add('text-red-400');
+                console.error(err);
+            }
+
+            // Scroll otomatis ke bagian ter bawah dari chatArea
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        /**
+         * Menampilkan teks dengan efek seperti mengetik (typewriter effect).
+         * @param {HTMLElement} element - Element tempat teks ditampilkan.
+         * @param {string} text - Teks balasan lengkap dari AI.
+         * @param {HTMLElement} scrollContainer - Element container chat untuk auto scroll.
+         */
+        function typeWriter(element, text, scrollContainer) {
+            let i = 0;
+            element.innerText = ""; 
+            
+            const speed = 15; // Kecepatan mengetik dalam milidetik per karakter
+            
+            function type() {
+                if (i < text.length) {
+                    element.innerText += text.charAt(i);
+                    i++;
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                    setTimeout(type, speed);
+                }
+            }
+            type();
+        }
+
+        /**
+         * Menambahkan bubble pesan baru ke dalam area chat (user / bot).
+         * @param {string} sender - Pengirim pesan ('user' atau 'bot').
+         * @param {string} text - Isi pesan yang akan ditampilkan.
+         * @returns {string} ID unik dari element pesan bot.
+         */
+        function appendMessage(sender, text) {
+            const chatArea = document.getElementById('chatArea');
+            const msgId = 'msg-' + Date.now();
+            
+            const msgRow = document.createElement('div');
+            msgRow.className = `flex w-full ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+            
+            const msgBubble = document.createElement('div');
+            if (sender === 'user') {
+                msgBubble.className = "bg-[#2f2f2f] text-gray-100 max-w-[70%] rounded-2xl px-4 py-2.5 text-base border border-gray-700 shadow-sm transition-all duration-300 transform translate-y-2 opacity-0";
+                msgBubble.innerText = text;
+
+                // Efek animasi masuk (fade-in & slide-up) untuk pesan user
+                setTimeout(() => {
+                    msgBubble.classList.remove('translate-y-2', 'opacity-0');
+                }, 20);
+            } else {
+                msgBubble.className = "text-gray-200 max-w-[85%] text-base leading-relaxed";
+                msgBubble.id = msgId;
+                msgBubble.innerText = text;
+            }
+            
+            msgRow.appendChild(msgBubble);
+            chatArea.appendChild(msgRow);
+            
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return msgId;
+        }
+
+        // Auto-resize tinggi textarea sesuai dengan jumlah baris teks yang diketik
+        const tx = document.getElementById('userInput');
+        tx.addEventListener("input", OnInput, false);
+        function OnInput() {
+            this.style.height = "auto";
+            this.style.height = (this.scrollHeight) + "px";
+        }
+    </script>
+</body>
+</html>

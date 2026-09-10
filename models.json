@@ -1,0 +1,8 @@
+{
+  "models": [
+    {"id": "1", "display_name": "Qwen 3.6 (27B)", "groq_id": "qwen/qwen3.6-27b", "provider": "groq"},
+    {"id": "2", "display_name": "Qwen 3.8 (27B)", "groq_id": "qwen/qwen3.8-27b", "provider": "groq"},
+    {"id": "3", "display_name": "GPT OSS (120B)", "groq_id": "openai/gpt-oss-120b", "provider": "groq"},
+    {"id": "4", "display_name": "Gemini 3.6 Flash", "groq_id": "gemini-3.6-flash", "provider": "google"}
+  ]
+}
