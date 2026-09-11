@@ -56,6 +56,7 @@ renai/
 - [x] Model selection
 - [x] Mobile design
 - [] Functional sidebar
+- [] Better memory
 - [] File upload
 - [] Auth 
 
