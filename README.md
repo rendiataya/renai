@@ -1,7 +1,7 @@
 # RenAI - AI Aggregator
 Sebuah website AI Chat Aggregator yang menyediakan model model AI populer siap pakai
 
-Live Website : https://renai-three.vercel.app/
+Live Website : https://renai-chat.vercel.app/
 
 ![Project Preview](./assets/img/preview.png)
 
