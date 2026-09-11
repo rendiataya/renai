@@ -8,13 +8,26 @@
     
     <!-- Tailwind CSS Engine (v4 Browser Bundle) -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
     
     <style>
-        /* Format teks pada area chat agar mempertahankan spasi dan baris baru */
-        #chatArea div {
-            white-space: pre-wrap !important;
-        }
-    
+        /* Mengembalikan gaya dasar Markdown & Menghilangkan gap bawah berlebih */
+        .markdown-content { white-space: normal !important; }
+        .markdown-content p { margin-top: 0 !important; margin-bottom: 0.5em !important; display: block !important; }
+        .markdown-content p:last-child { margin-bottom: 0 !important; }
+        .markdown-content h1 { font-size: 2em !important; font-weight: 700 !important; margin: 0.5em 0 !important; display: block !important; }
+        .markdown-content h2 { font-size: 1.5em !important; font-weight: 700 !important; margin: 0.5em 0 !important; display: block !important; }
+        .markdown-content h3 { font-size: 1.25em !important; font-weight: 700 !important; margin: 0.5em 0 !important; display: block !important; }
+        .markdown-content ul { list-style-type: disc !important; margin-left: 1.5em !important; margin-bottom: 0.5em !important; display: block !important; }
+        .markdown-content ol { list-style-type: decimal !important; margin-left: 1.5em !important; margin-bottom: 0.5em !important; display: block !important; }
+        .markdown-content li { margin-bottom: 0.25em !important; }
+        .markdown-content strong { font-weight: 700 !important; }
+        .markdown-content a { color: #3b82f6 !important; text-decoration: underline !important; }
+        .markdown-content pre { background-color: #111827 !important; padding: 1em !important; border-radius: 8px !important; overflow-x: auto !important; margin-bottom: 0.5em !important; }
+        .markdown-content code { background-color: #374151 !important; padding: 2px 4px !important; border-radius: 4px !important; font-family: monospace !important; font-size: 0.9em !important; }
+        .markdown-content pre code { background-color: transparent !important; padding: 0 !important; }
+
         /* Custom Styling Scrollbar untuk Tema Gelap */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #212121; }
@@ -78,15 +91,14 @@
                 <!-- Textarea untuk Mengetik Pesan -->
                 <textarea 
                     id="userInput" 
-                    rows="1"
-                    placeholder="Tanya Groq sesuatu..." 
-                    class="w-full bg-transparent resize-none outline-none text-gray-100 placeholder-gray-500 text-base px-2 py-1"
-                    onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
+                    placeholder="Tanyakan apapun..." 
+                    class="w-full bg-transparent resize-none outline-none text-gray-100 placeholder-gray-500 text-base px-2 py-1 max-h-32 min-h-[24px]"
+                    onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
 
                 <!-- Panel Kontrol Bawah Textarea: Dropdown Model & Tombol Kirim -->
                 <div class="flex justify-between items-center pt-2 border-t border-gray-800">
                     <div class="flex items-center gap-2">
-                        <!-- Dropdown Pilihan Model (Template Jinja2 / Server Side Rendering) -->
+                        <!-- Dropdown Pilihan Model -->
                         <select id="modelSelect" class="bg-[#212121] text-xs text-gray-400 border border-gray-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:bg-[#2d2d2d] transition">
                             {% for model in models %}
                                 <option value="{{ model.id }}">{{ model.display_name }}</option>
@@ -113,12 +125,8 @@
 
     <!-- Script Logika Frontend -->
     <script>
-        // Flag untuk menandai apakah percakapan pertama kali dilakukan
         let isFirstChat = true;
 
-        /**
-         * Fungsi utama untuk mengirim pesan pengguna ke backend server dan menerima respon AI.
-         */
         async function sendMessage() {
             const messageInput = document.getElementById('userInput');
             const message = messageInput.value;
@@ -127,10 +135,8 @@
             const welcomeScreen = document.getElementById('welcomeScreen');
             const sidebar = document.getElementById('sidebar');
 
-            // Abaikan jika input pesan kosong
             if (!message.trim()) return;
 
-            // Transisi tampilan awal jika ini pesan pertama
             if (isFirstChat) {
                 welcomeScreen.classList.add('opacity-0', 'scale-95');
                 
@@ -142,83 +148,88 @@
                     setTimeout(() => chatArea.classList.add('opacity-100'), 50);
                 }, 400);
 
-                // Tampilkan sidebar
                 sidebar.classList.remove('w-0', 'opacity-0');
                 sidebar.classList.add('w-64', 'opacity-100', 'border-r');
                 
                 isFirstChat = false;
             }
 
-            // Tampilkan pesan pengguna di area chat
             appendMessage('user', message);
-            messageInput.value = "";
             
-            // Tampilkan placeholder pesan bot dengan indikator berpikir
+            // --- KUNCI UTAMA: KOSONGKAN LALU RESET TINGGI SECARA REFLOW-SAFE ---
+            messageInput.value = "";
+            resetTextareaHeight(messageInput);
+            
             const botMessageId = appendMessage('bot', 'Berpikir...');
             const botZone = document.getElementById(botMessageId);
             botZone.classList.add('thinking-pulse', 'text-gray-400', 'italic');
 
             try {
-                // Mengirim permintaan POST ke endpoint backend (/chat)
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: message, model_id: modelId })
                 });
 
-                // Hapus animasi indikator berpikir
                 botZone.classList.remove('thinking-pulse', 'text-gray-400', 'italic');
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Jalankan efek pengetikan untuk balasan AI
                     typeWriter(botZone, data.reply, chatArea);
                 } else {
                     botZone.innerText = "Error dari Server: " + data.error;
                     botZone.classList.add('text-red-400');
                 }
             } catch (err) {
-                // Penanganan error jaringan atau kegagalan koneksi
                 botZone.classList.remove('thinking-pulse', 'text-gray-400', 'italic');
                 botZone.innerText = "Gagal mengambil data dari server lokal. Pastikan main.py terhubung.";
                 botZone.classList.add('text-red-400');
                 console.error(err);
             }
 
-            // Scroll otomatis ke bagian ter bawah dari chatArea
             chatArea.scrollTop = chatArea.scrollHeight;
         }
 
-        /**
-         * Menampilkan teks dengan efek seperti mengetik (typewriter effect).
-         * @param {HTMLElement} element - Element tempat teks ditampilkan.
-         * @param {string} text - Teks balasan lengkap dari AI.
-         * @param {HTMLElement} scrollContainer - Element container chat untuk auto scroll.
-         */
         function typeWriter(element, text, scrollContainer) {
             let i = 0;
-            element.innerText = ""; 
+            let rawText = "";
+            element.innerHTML = ""; 
             
-            const speed = 15; // Kecepatan mengetik dalam milidetik per karakter
+            const speed = 10; 
             
             function type() {
                 if (i < text.length) {
-                    element.innerText += text.charAt(i);
+                    rawText += text.charAt(i);
+                    element.innerHTML = readMarkdown(rawText); 
                     i++;
                     scrollContainer.scrollTop = scrollContainer.scrollHeight;
                     setTimeout(type, speed);
+                } else {
+                    element.innerHTML = readMarkdown(text);
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
                 }
             }
             type();
         }
 
-        /**
-         * Menambahkan bubble pesan baru ke dalam area chat (user / bot).
-         * @param {string} sender - Pengirim pesan ('user' atau 'bot').
-         * @param {string} text - Isi pesan yang akan ditampilkan.
-         * @returns {string} ID unik dari element pesan bot.
-         */
+        // Konfigurasi Marked agar mendeteksi baris baru dengan benar
+        marked.setOptions({
+            gfm: true,
+            breaks: true
+        });
+
+        function readMarkdown(text) {
+            try {
+                if (typeof marked === 'undefined') return text; 
+                const html = marked.parse(text);
+                return typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html) : html;
+            } catch (err) {
+                console.error("Error parse markdown:", err);
+                return text;
+            }
+        }
+
         function appendMessage(sender, text) {
             const chatArea = document.getElementById('chatArea');
             const msgId = 'msg-' + Date.now();
@@ -228,17 +239,16 @@
             
             const msgBubble = document.createElement('div');
             if (sender === 'user') {
-                msgBubble.className = "bg-[#2f2f2f] text-gray-100 max-w-[70%] rounded-2xl px-4 py-2.5 text-base border border-gray-700 shadow-sm transition-all duration-300 transform translate-y-2 opacity-0";
-                msgBubble.innerText = text;
+                msgBubble.className = "markdown-content bg-[#2f2f2f] text-gray-100 max-w-[70%] rounded-2xl px-4 py-2.5 text-base border border-gray-700 shadow-sm transition-all duration-300 transform translate-y-2 opacity-0";
+                msgBubble.innerHTML = readMarkdown(text);
 
-                // Efek animasi masuk (fade-in & slide-up) untuk pesan user
                 setTimeout(() => {
                     msgBubble.classList.remove('translate-y-2', 'opacity-0');
                 }, 20);
             } else {
-                msgBubble.className = "text-gray-200 max-w-[85%] text-base leading-relaxed";
+                msgBubble.className = "markdown-content text-gray-200 max-w-[85%] text-base leading-relaxed";
                 msgBubble.id = msgId;
-                msgBubble.innerText = text;
+                msgBubble.innerHTML = readMarkdown(text);
             }
             
             msgRow.appendChild(msgBubble);
@@ -248,12 +258,25 @@
             return msgId;
         }
 
-        // Auto-resize tinggi textarea sesuai dengan jumlah baris teks yang diketik
         const tx = document.getElementById('userInput');
         tx.addEventListener("input", OnInput, false);
+
+        // Fungsi bersama untuk resize textarea. Membaca offsetHeight di antara
+        // perubahan style memaksa browser melakukan reflow sinkron, jadi
+        // perubahan height benar-benar diterapkan saat itu juga (bukan
+        // di-batch/di-skip saat banyak manipulasi DOM lain terjadi di tick yang sama).
+        function resetTextareaHeight(el) {
+            el.style.height = "auto";
+            void el.offsetHeight; // paksa reflow
+            if (el.value.trim() === "") {
+                el.style.height = "28px";
+            } else {
+                el.style.height = el.scrollHeight + "px";
+            }
+        }
+
         function OnInput() {
-            this.style.height = "auto";
-            this.style.height = (this.scrollHeight) + "px";
+            resetTextareaHeight(this);
         }
     </script>
 </body>
