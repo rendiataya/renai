@@ -3,3 +3,4 @@
 src/
 structure.txt
 pyproject.toml
+uv.lock

@@ -41,57 +41,127 @@
         .thinking-pulse {
             animation: pulse-light 1.4s infinite ease-in-out;
         }
+
+        /* ===== Sidebar Responsif =====
+           Mobile  : overlay (position fixed) menutupi konten, dengan backdrop.
+           Desktop : bagian dari flex layout (position relative/static) sehingga
+                     saat terbuka ia MENDORONG main content, bukan menimpanya.
+           Logo tinggal permanen di dalam sidebar, jadi tidak ada lagi
+           tabrakan/tumpang-tindih antara header, logo, dan sidebar. */
+        #sidebar {
+            transition: width 0.3s ease, transform 0.3s ease;
+        }
+        /* Inner wrapper diberi lebar tetap supaya konten (teks, tombol) tidak
+           ikut menyempit/reflow aneh selagi sidebar sedang animasi lebar. */
+        #sidebarInner {
+            width: 260px;
+        }
+
+        @media (max-width: 767px) {
+            #sidebar {
+                position: fixed;
+                inset-block: 0;
+                left: 0;
+                width: 260px;
+                max-width: 85vw;
+                transform: translateX(-100%);
+                z-index: 40;
+            }
+            #sidebar.sidebar-open {
+                transform: translateX(0);
+            }
+        }
+
+        @media (min-width: 768px) {
+            #sidebar {
+                position: relative;
+                width: 0;
+                overflow: hidden;
+            }
+            #sidebar.sidebar-open {
+                width: 260px;
+            }
+            /* Backdrop hanya relevan untuk mode overlay di mobile */
+            #sidebarOverlay {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body class="bg-[#212121] text-gray-200 font-sans h-screen flex overflow-hidden m-0 p-0">
 
+    <!-- Backdrop: menggelapkan area chat saat sidebar terbuka, klik untuk menutup -->
+    <div id="sidebarOverlay" onclick="closeSidebar()" class="fixed inset-0 bg-black/50 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
     <!-- Sidebar Komponen: Menampilkan tombol Chat Baru & Riwayat Chat -->
-    <aside id="sidebar" class="w-0 opacity-0 bg-[#171717] h-full flex flex-col justify-between overflow-hidden transition-all duration-500 border-gray-800 shrink-0 z-30">
-        <div class="flex flex-col gap-2 p-3 w-64">
-            <!-- Tombol untuk mereset/memulai chat baru -->
-            <button onclick="window.location.reload()" class="w-full text-left p-3 hover:bg-[#212121] rounded-lg border border-gray-700 flex items-center justify-between text-sm transition font-medium cursor-pointer">
-                <span>Chat Baru</span>
-            </button>
-            
-            <!-- Daftar Riwayat Percakapan -->
-            <div class="text-xs text-gray-500 px-3 mt-4 uppercase font-bold tracking-wider">Riwayat Chat</div>
-            <div class="text-sm text-gray-400 px-3 py-2 hover:bg-[#212121] rounded-md cursor-pointer truncate">
-                First chat
+    <!-- position: fixed -> sidebar overlay di atas konten, TIDAK ikut mengecilkan main/chat area -->
+    <aside id="sidebar" class="bg-[#171717] h-full border-r border-gray-800 shrink-0 z-40">
+        <div id="sidebarInner" class="h-full flex flex-col justify-between">
+            <div class="flex flex-col">
+                <!-- Header Sidebar: Logo + Tombol Tutup (panah kiri) -->
+                <div class="flex items-center justify-between p-4 border-b border-gray-800">
+                    <div class="text-lg font-semibold text-gray-200">RenAI</div>
+                    <button onclick="closeSidebar()" aria-label="Tutup menu" class="p-2 rounded-lg hover:bg-[#2f2f2f] text-gray-300 transition cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex flex-col gap-2 p-3">
+                    <!-- Tombol untuk mereset/memulai chat baru -->
+                    <button onclick="window.location.reload()" class="w-full text-left p-3 hover:bg-[#212121] rounded-lg border border-gray-700 flex items-center justify-between text-sm transition font-medium cursor-pointer">
+                        <span>Chat Baru</span>
+                    </button>
+
+                    <!-- Daftar Riwayat Percakapan -->
+                    <div class="text-xs text-gray-500 px-3 mt-4 uppercase font-bold tracking-wider">Riwayat Chat</div>
+                    <div class="text-sm text-gray-400 px-3 py-2 hover:bg-[#212121] rounded-md cursor-pointer truncate">
+                        First chat
+                    </div>
+                </div>
             </div>
-        </div>
-        
-        <!-- Footer Sidebar -->
-        <div class="p-5 text-xs text-gray-500 border-t border-gray-800 w-64">
-            More inprogress
+
+            <!-- Footer Sidebar -->
+            <div class="p-5 text-xs text-gray-500 border-t border-gray-800">
+                More inprogress
+            </div>
         </div>
     </aside>
 
     <!-- Area Utama Aplikasi (Header, Chat Stream, Welcome Screen, dan Input Box) -->
     <main class="flex-1 flex flex-col relative h-full w-full justify-between items-center bg-[#212121] overflow-hidden">
         
-        <!-- Header Atas dengan Logo / Judul Aplikasi -->
-        <header class="w-full p-4 flex justify-between items-center absolute top-0 left-0 z-10">
-            <div class="text-lg font-semibold text-gray-400 ml-2" id="topLogo">RenAI</div>
+        <!-- Header Atas dengan Tombol Hamburger & Logo / Judul Aplikasi -->
+        <header class="w-full p-4 flex justify-between items-center absolute top-0 left-0 z-50 pointer-events-none">
+            <div class="flex items-center gap-1 pointer-events-auto">
+                <!-- Tombol Buka Sidebar (panah kanan): hanya tampil saat sidebar tertutup -->
+                <button id="mainToggleBtn" onclick="toggleSidebar()" aria-label="Buka menu" class="p-2 rounded-lg hover:bg-[#2f2f2f] text-gray-300 transition cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5 15.75 12l-7.5 7.5" />
+                    </svg>
+                </button>
+            </div>
         </header>
 
         <!-- Container Percakapan Chat (Disembunyikan pada awal dimuat) -->
-        <div id="chatArea" class="w-full max-w-3xl flex-1 overflow-y-auto px-4 pt-20 pb-48 space-y-6 hidden mx-auto transition-opacity duration-500 opacity-0">
+        <div id="chatArea" class="w-full max-w-3xl flex-1 overflow-y-auto px-3 sm:px-4 pt-20 pb-48 space-y-6 hidden mx-auto transition-opacity duration-500 opacity-0">
         </div>
 
         <!-- Tampilan Pesan Selamat Datang (Awal sebelum ada percakapan) -->
         <div id="welcomeScreen" class="flex flex-col items-center justify-center flex-1 max-w-xl text-center px-4 mx-auto my-auto transition-all duration-500 opacity-100 transform scale-100">
-            <h1 class="text-4xl font-bold text-gray-100 mb-2">Mau bantu apa hari ini?</h1>
+            <h1 class="text-2xl sm:text-4xl font-bold text-gray-100 mb-2">Mau bantu apa hari ini?</h1>
             <p class="text-gray-400 text-sm">Pilih model andalanmu di kiri bawah dan mulailah mengetik.</p>
         </div>
 
         <!-- Container Input Pesan & Pemilihan Model AI -->
-        <div class="w-full max-w-3xl px-4 absolute bottom-0 pb-6 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent pt-10 mx-auto left-0 right-0 z-20">
+        <div class="w-full max-w-3xl px-3 sm:px-4 absolute bottom-0 pb-6 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent pt-10 mx-auto left-0 right-0 z-20">
             <div class="bg-[#2f2f2f] rounded-2xl p-3 border border-gray-700 shadow-2xl flex flex-col gap-2">
                 
                 <!-- Textarea untuk Mengetik Pesan -->
                 <textarea 
                     id="userInput" 
-                    placeholder="Tanyakan apapun..." 
+                    placeholder="Tanya Groq sesuatu..." 
                     class="w-full bg-transparent resize-none outline-none text-gray-100 placeholder-gray-500 text-base px-2 py-1 max-h-32 min-h-[24px]"
                     onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
 
@@ -127,13 +197,40 @@
     <script>
         let isFirstChat = true;
 
+        // Sidebar berupa overlay (position: fixed), jadi buka/tutup hanya
+        // menggeser transform + menampilkan backdrop — tidak pernah mengubah
+        // ukuran/lebar main content, sehingga chat area tidak ikut mengecil.
+        function openSidebar() {
+            document.getElementById('sidebar').classList.add('sidebar-open');
+            // Sembunyikan tombol panah-kanan di header utama; tombol panah-kiri
+            // di dalam sidebar sendiri yang mengambil alih fungsi menutup.
+            document.getElementById('mainToggleBtn').classList.add('hidden');
+            const overlay = document.getElementById('sidebarOverlay');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('sidebar-open');
+            document.getElementById('mainToggleBtn').classList.remove('hidden');
+            const overlay = document.getElementById('sidebarOverlay');
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('sidebar-open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+
         async function sendMessage() {
             const messageInput = document.getElementById('userInput');
             const message = messageInput.value;
             const modelId = document.getElementById('modelSelect').value;
             const chatArea = document.getElementById('chatArea');
             const welcomeScreen = document.getElementById('welcomeScreen');
-            const sidebar = document.getElementById('sidebar');
 
             if (!message.trim()) return;
 
@@ -148,8 +245,7 @@
                     setTimeout(() => chatArea.classList.add('opacity-100'), 50);
                 }, 400);
 
-                sidebar.classList.remove('w-0', 'opacity-0');
-                sidebar.classList.add('w-64', 'opacity-100', 'border-r');
+                openSidebar();
                 
                 isFirstChat = false;
             }
@@ -239,14 +335,14 @@
             
             const msgBubble = document.createElement('div');
             if (sender === 'user') {
-                msgBubble.className = "markdown-content bg-[#2f2f2f] text-gray-100 max-w-[70%] rounded-2xl px-4 py-2.5 text-base border border-gray-700 shadow-sm transition-all duration-300 transform translate-y-2 opacity-0";
+                msgBubble.className = "markdown-content bg-[#2f2f2f] text-gray-100 max-w-[88%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-base border border-gray-700 shadow-sm transition-all duration-300 transform translate-y-2 opacity-0";
                 msgBubble.innerHTML = readMarkdown(text);
 
                 setTimeout(() => {
                     msgBubble.classList.remove('translate-y-2', 'opacity-0');
                 }, 20);
             } else {
-                msgBubble.className = "markdown-content text-gray-200 max-w-[85%] text-base leading-relaxed";
+                msgBubble.className = "markdown-content text-gray-200 max-w-[92%] sm:max-w-[85%] text-base leading-relaxed";
                 msgBubble.id = msgId;
                 msgBubble.innerHTML = readMarkdown(text);
             }
